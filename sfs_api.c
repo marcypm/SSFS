@@ -47,7 +47,7 @@ typedef struct rootDir_t{ //root directory containing inodes & matching Names
     //matches inode number?? with filename
     
     int inodeList[200];//index of inode in inodeList
-    unsigned char filenameList[200][10];
+    unsigned char filenameList[200][MaxChar];
     
 } rootDir_t;
 
@@ -72,7 +72,10 @@ void mkssfs(int fresh){
         for(int i = 0; i < 13; i++){ //takes care inodeList (superblock and FBM are't track by FBM)
           Fbm.bytes[i] = 0;
         }
-
+        
+        //NOTE: FBM 0 ==> disk_block 2
+        //      disk_block = FBM + 2
+        
         write_blocks(1, 1, &Fbm);//FBM
 
         //**creating superBlock**
@@ -81,68 +84,45 @@ void mkssfs(int fresh){
           inode_t inode = {.size = -1};
           inodeList[i] = inode;
         }
-
-        inode_t inode = {.size = 98};//random assignment
-        inodeList[0] = inode;
-        //write this list into mem
-        write_blocks(2, 13, &inodeList); //Inode list
+        write_blocks(2, 13, &inodeList); //inodelist
 
         inode_t jnode = {.size = 12800, .direct = {2,3,4,5,6,7,8,9,10,11,12,13,14}};//point to blocks 2-14
-        printf("1st inode size: %d\n", inodeList[0].size);
         superblock_t superblock = {"ssfs", BlockSize, jnode};
+        write_blocks(0, 1, &superblock);//superblock
+        
         printf("superblock magic num: %s\n",superblock.magic);
         printf("superblock jnode pointers: %d, %d, %d, %d\n", superblock.root.direct[0],superblock.root.direct[1],superblock.root.direct[2],superblock.root.direct[3]);
 
-        write_blocks(0, 1, &superblock);//superblock
-
-       
-        printf("Free block at: %d\n", getFreeBlock());
-        
-
-        printf("retrieveing superblock...\n");
-        superblock_t tempsuper;
-        read_blocks(0,1,&tempsuper);
-        printf("tempsuper magic num: %s\n",tempsuper.magic);
-
-        inode_t newJnode = tempsuper.root;
-        inode_t newInodeList[200];
-        read_blocks(2, 13, &newInodeList);
-        printf("new 1st inode size: %d\n", newInodeList[0].size);
-        
-        //once superblock, FBM, inodeList are in mem i need to create a rootDir
-        //rootDir will match inodes and names together
-        //rootDir is pointed by inode in inodeList
-        //rootDir will take up about 4blocks
-        //get free inode from list (using function) and change its size to ?____?
         
         
+        linkInodePointers(3,getFreeInode(), 2800);//should link free inode's pointers to free FBM blocks and set them to 0 & set inode size
+        //FBM should allocate 13, 14, 15 to rootDir
+        //0-12 is already allocated to inodeList
+        //superB & FBM arent shown in FBM
         
-        linkInodePointers(3,getFreeInode(), 2800);
+        rootDir_t rootDir = {.inodeList[100] = {-1}, .filenameList = {{"Hey"}} };//TODO: need to initialize properly....
         
-        rootDir_t rootDir = {.inodeList[100] = {-1}, .filenameList = {{"Hey"}} };
-        
+        write_blocks(15,3,&rootDir);//rootDir
         
         printf("size of rootDir: %lu\n", sizeof(rootDir));//400
         printf("size of inodeList: %lu\n", sizeof(inodeList));//12800
         printf("rootDir int: %d\n",rootDir.inodeList[101]);
         printf("rootDir name: %s\n",rootDir.filenameList[100]);
         
-        //Need to make freeblock function
-        //free inode function
 
 
 
         /* QUESTIONS:
                       What is size of inode?
                       Magic number of superblock?
-                      Do i need to worry about shadow nodes?
-                      How to make the rootDir?
 
 
         */
 
     }else{//retrieve old file system
         init_disk("ssfs_disk", BlockSize, BlockNumber);
+        
+        //testing...
         block_t fbm;
         printf("fbm %d is: %u\n",1, fbm.bytes[1]);
         read_blocks(1,1,&fbm);
@@ -151,12 +131,15 @@ void mkssfs(int fresh){
 
 }
 
-int linkInodePointers(int nblocks, int inodeNum, int inodeSize){
+int linkInodePointers(int nblocks, int inodeNum, int inodeSize){//Link free inode's pointers to free FBM blocks and set them to 0 & set size
+    //TODO: need to take care of the case where multiple inodes may be needed to point to a file...
+    
     inode_t inodeList[208];
     read_blocks(2,13,&inodeList); //needed to get inode number
     
     return -1;
 }
+
 
 int getFreeInode(){// returns the index of free inode in inodeList
     inode_t inodeList[208];
@@ -220,7 +203,6 @@ int ssfs_remove(char *file){
 
 
 int main(void){
-  printf("MAKING SSFS\n");
   mkssfs(1);
 
 
