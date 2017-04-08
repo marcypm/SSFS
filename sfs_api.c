@@ -14,11 +14,11 @@
 #include <signal.h>
 #include <fcntl.h>
 
-#define MaxChar 10
+#define MaxChar 11
 #define BlockSize 1024
 #define BlockNumber 1024
 
-//Global Vars & Structures
+//Structures
 
 typedef struct inode_t{
     int size;//if size = -1, then inode is empty, otherwise
@@ -35,7 +35,7 @@ typedef struct superblock_t{
     unsigned char magic[4];
     int bSize;
 
-    inode_t root; //points to file containing all inodes (jnode)
+    inode_t jroot; //points to file containing all inodes (jnode)
 
     inode_t shadow[4];//???
     int lastShadow;
@@ -51,6 +51,21 @@ typedef struct rootDir_t{ //root directory containing inodes & matching Names
     
 } rootDir_t;
 
+typedef struct openFile_t{
+    int inodeNum;
+    int read;
+    int write;
+}openFile_t;
+
+//Global Vars
+
+rootDir_t rootDir;
+block_t FBM;
+openFile_t openFiles[201];
+inode_t inodeList[208];
+
+
+
 int getFreeBlock();
 int getFreeInode();
 int writeFreeBlock();
@@ -63,23 +78,23 @@ void mkssfs(int fresh){
         printf("**MAKING NEW FILE SYSTEM!**\n");
         init_fresh_disk("ssfs_disk",BlockSize,BlockNumber);
 
-        block_t Fbm;
+    
         for(int i =0; i < BlockNumber; i++){//initialize empty block (all 1)
-            Fbm.bytes[i] = 1;
-            //printf("block %d is: %u\n",i, Fbm.bytes[i]);
+            FBM.bytes[i] = 1;
+            //printf("block %d is: %u\n",i, FBM.bytes[i]);
         }
 
         for(int i = 0; i < 13; i++){ //takes care inodeList (superblock and FBM are't track by FBM)
-          Fbm.bytes[i] = 0;
+          FBM.bytes[i] = 0;
         }
         
         //NOTE: FBM 0 ==> disk_block 2
         //      disk_block = FBM + 2
         
-        write_blocks(1, 1, &Fbm);//FBM
+        write_blocks(1, 1, &FBM);//FBM
 
         //**creating superBlock**
-        inode_t inodeList[200]; //maintain a list of inodes in mem
+        
         for(int i = 0; i < 200; i++){ //initialize with inodes all of size -1 (empty)
           inode_t inode = {.size = -1};
           inodeList[i] = inode;
@@ -91,29 +106,33 @@ void mkssfs(int fresh){
         write_blocks(0, 1, &superblock);//superblock
         
         printf("superblock magic num: %s\n",superblock.magic);
-        printf("superblock jnode pointers: %d, %d, %d, %d\n", superblock.root.direct[0],superblock.root.direct[1],superblock.root.direct[2],superblock.root.direct[3]);
+        printf("superblock jnode pointers: %d, %d, %d, %d\n", superblock.jroot.direct[0],superblock.jroot.direct[1],superblock.jroot.direct[2],superblock.jroot.direct[3]);
+
+        
+        linkInodePointers(3,getFreeInode(), 3000);//should link free inode's pointers to free FBM blocks and set them to 0 & set inode size
 
         
         
-        linkInodePointers(3,getFreeInode(), 2800);//should link free inode's pointers to free FBM blocks and set them to 0 & set inode size
-        //FBM should allocate 13, 14, 15 to rootDir
-        //0-12 is already allocated to inodeList
-        //superB & FBM arent shown in FBM
-        
-        rootDir_t rootDir = {.inodeList[100] = {-1}, .filenameList = {{"Hey"}} };//TODO: need to initialize properly....
+        for(int i = 0; i < 200; i++){
+            rootDir.inodeList[i] = -1;
+            strcpy(rootDir.filenameList[i],"-1");
+        }
         
         write_blocks(15,3,&rootDir);//rootDir
         
-        printf("size of rootDir: %lu\n", sizeof(rootDir));//400
-        printf("size of inodeList: %lu\n", sizeof(inodeList));//12800
-        printf("rootDir int: %d\n",rootDir.inodeList[101]);
-        printf("rootDir name: %s\n",rootDir.filenameList[100]);
+        for(int i = 0; i<201; i++){//initialized fileDescriptors to -1
+            openFiles[i].inodeNum = -1;
+            openFiles[i].read = -1;
+            openFiles[i].write = -1;
+            
+        }
         
+        //printf("size of rootDir: %lu\n", sizeof(rootDir));//400
+        //printf("size of inodeList: %lu\n", sizeof(inodeList));//12800
 
-
-
+        
         /* QUESTIONS:
-                      What is size of inode?
+         
                       Magic number of superblock?
 
 
@@ -122,11 +141,20 @@ void mkssfs(int fresh){
     }else{//retrieve old file system
         init_disk("ssfs_disk", BlockSize, BlockNumber);
         
-        //testing...
-        block_t fbm;
-        printf("fbm %d is: %u\n",1, fbm.bytes[1]);
-        read_blocks(1,1,&fbm);
-        printf("fbm %d is: %u\n",1, fbm.bytes[1]);
+        for(int i = 0; i<201; i++){//initialized fileDescriptors to -1
+            openFiles[i].inodeNum = -1;
+            openFiles[i].read = -1;
+            openFiles[i].write = -1;
+            
+        }
+        
+        read_blocks(1,1,&FBM);
+        read_blocks(15,3,&rootDir);
+        read_blocks(2,13,&inodeList);
+        
+        //testing....
+        
+        
     }
 
 }
@@ -137,7 +165,20 @@ int linkInodePointers(int nblocks, int inodeNum, int inodeSize){//Link free inod
     inode_t inodeList[208];
     read_blocks(2,13,&inodeList); //needed to get inode number
     
-    return -1;
+    if(nblocks > 14){//super long entry :/
+        return -1;
+    }else{
+        
+        inodeList[inodeNum].size = inodeSize; //set inodes size
+        
+        for(int i = 0; i < nblocks; i++){
+            int freeB = getFreeBlock();
+            inodeList[inodeNum].direct[i] = freeB;
+            writeFreeBlock(freeB);
+        }
+        
+        return 1;
+    }
 }
 
 
@@ -153,33 +194,61 @@ int getFreeInode(){// returns the index of free inode in inodeList
 }
 
 int getFreeBlock(){ //returns the index of a free block
-  block_t fbm;
-  //printf("fbm %d is: %u\n",1, read.bytes[1]);
-  read_blocks(1,1,&fbm);
+
 
   for(int i =0; i < BlockNumber; i++){
-    if (fbm.bytes[i] == 1)
+    if (FBM.bytes[i] == 1)
       return i;
   }
 return -1;
 }
 
 int writeFreeBlock(int free){ //FBM changes availability to 0
-    block_t fbm;
-    //printf("fbm %d is: %u\n",1, read.bytes[1]);
-    read_blocks(1,1,&fbm);
+
     
-    if (fbm.bytes[free] == 0){//aready occupied
+    if (FBM.bytes[free] == 0){//aready occupied
         printf("TAKEN\n");
         return -1;
     }
-    fbm.bytes[free] = 0;
-    write_blocks(1,1,&fbm);
-    
+    FBM.bytes[free] = 0;
+    write_blocks(1,1,&FBM);
     return 1;//successful
 }
 
-int ssfs_fopen(char *name){
+
+int ssfs_fopen(char *name){ //index of newsly created/opened entry (disk block NUMBER: can be from 16-1023)
+    
+    //check if file exists by searching rootDir, if file if found add it to openFile list and return the index its in
+    //open file in append mode
+    int j =0;
+    char *dirName =rootDir.filenameList[j];
+    while (strcpm(dirName,name) != 0){
+        j++; //TODO: can go out of bound!
+        if(j == 201)
+            return -1;
+        dirName =rootDir.filenameList[j];
+    }
+    int k =0;
+    while(openFiles[k].inodeNum != -1){//look for empty slot in openFileDescriptor
+        k++;
+        if(k == 201)
+            return -1;
+    }
+    
+    if(strcpm(dirName,name) == 0){ //found file with corresponding name, at entry of rootDir j
+        openFiles[k].inodeNum = rootDir.inodeList[j];
+        openFiles[k].read = 0;
+        int inodeSize = inodeList[rootDir.inodeList[j]].size;
+        int inodeMod = inodeSize%BlockSize;
+        
+        openFiles[k].write = inodeMod;
+        
+        return k;
+    }else{
+        //if file not found create a new entry (get inode and point it to free block) set size to 0 and add to openFile/return index its in
+
+    }
+    
     return 0;
 }
 int ssfs_fclose(int fileID){
