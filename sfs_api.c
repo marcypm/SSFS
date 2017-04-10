@@ -71,7 +71,8 @@ int getFreeBlock();
 int getFreeInode();
 int writeFreeBlock();
 int linkInodePointers(int nblocks, int inodeNum, int inodeSize);
-
+int getNumFreeBlocks();
+int display(void);
 
 void mkssfs(int fresh){
 
@@ -79,6 +80,11 @@ void mkssfs(int fresh){
         printf("**MAKING NEW FILE SYSTEM!**\n");
         init_fresh_disk("ssfs_disk",BlockSize,BlockNumber);
 
+        //clear all batablocks to null before starting
+        for(int i = 0; i < BlockNumber; i++){
+            char blockTemp[1024] = {'\0'};
+            write_blocks(i, 1, blockTemp);
+        }
     
         for(int i =0; i < BlockNumber; i++){//initialize empty block (all 1)
             FBM.bytes[i] = 1;
@@ -97,12 +103,12 @@ void mkssfs(int fresh){
         //**creating superBlock**
         
         for(int i = 0; i < 200; i++){ //initialize with inodes all of size -1 (empty)
-          inode_t inode = {.size = -1};
+            inode_t inode = {.size = -1, .direct = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1}, .indirect = -1};
           inodeList[i] = inode;
         }
         write_blocks(2, 13, &inodeList); //inodelist
 
-        inode_t jnode = {.size = 12800, .direct = {2,3,4,5,6,7,8,9,10,11,12,13,14}};//point to blocks 2-14
+        inode_t jnode = {.size = 12800, .direct = {2,3,4,5,6,7,8,9,10,11,12,13,14}, .indirect = -1};//point to blocks 2-14
         superblock_t superblock = {"ssfs", BlockSize, jnode};
         write_blocks(0, 1, &superblock);//superblock
         
@@ -128,6 +134,7 @@ void mkssfs(int fresh){
             
         }
         
+
         //printf("size of rootDir: %lu\n", sizeof(rootDir));//400
         //printf("size of inodeList: %lu\n", sizeof(inodeList));//12800
 
@@ -165,9 +172,14 @@ int linkInodePointers(int nblocks, int inodeNum, int inodeSize){//Link free inod
         inodeList[inodeNum].size = inodeSize; //set inodes size
         
         for(int i = 0; i < nblocks; i++){
-            int freeB = getFreeBlock();
-            inodeList[inodeNum].direct[i] = freeB;
+            int freeB = getFreeBlock(); //get free block
+            inodeList[inodeNum].direct[i] = freeB+2;
             writeFreeBlock(freeB);
+            printf("wrote BUSY: %d\n",freeB);
+//            char blockTemp[1024]= {'\0'};
+//            write_blocks(freeB+2,1,blockTemp);
+            
+            
         }
         write_blocks(2, 13, &inodeList);
         return 1;
@@ -176,9 +188,9 @@ int linkInodePointers(int nblocks, int inodeNum, int inodeSize){//Link free inod
 
 
 int getFreeInode(){// returns the index of free inode in inodeList
-    inode_t inodeList[208];
-    read_blocks(2,13,&inodeList);
+    
     for(int i =0; i < 200; i++){
+        printf("inode[%d] size: %d\n",i, inodeList[i].size);
         if(inodeList[i].size == -1){
             return i;
         }
@@ -196,6 +208,15 @@ int getFreeBlock(){ //returns the index of a free block
 return -1;
 }
 
+int getNumFreeBlocks(){
+    int freeBlocks =0;
+    for(int i =0; i < BlockNumber; i++){
+        if (FBM.bytes[i] == 1)
+            freeBlocks++;
+    }
+    return freeBlocks;
+}
+
 int writeFreeBlock(int free){ //FBM changes availability to 0
 
     
@@ -203,6 +224,7 @@ int writeFreeBlock(int free){ //FBM changes availability to 0
         printf("TAKEN\n");
         return -1;
     }
+    
     FBM.bytes[free] = 0;
     write_blocks(1,1,&FBM);
     return 1;//successful
@@ -239,7 +261,7 @@ int ssfs_fopen(char *name){ //index of newsly created/opened entry (disk block N
         int inodeSize = inodeList[rootDir.inodeList[j]].size;
         //int inodeMod = inodeSize%BlockSize;
         
-        openFiles[k].write = (inodeSize-1);//is this correct?
+        openFiles[k].write = (inodeSize-1);//is this correct? YES
         
         printf("inodeNum is: %d\n", openFiles[k].inodeNum);
         printf("read is: %d\n", openFiles[k].read);
@@ -248,7 +270,9 @@ int ssfs_fopen(char *name){ //index of newsly created/opened entry (disk block N
         //if file not found create a new entry (get inode and point it to free block) set size to 0 and add to openFile/return index its in
         printf("FILE NOT FOUND\n");
         //update FBM, rootDir, inodeList
+        
         int freeNode = getFreeInode();
+        printf("FREENODE: %d\n", freeNode);
         linkInodePointers(1,freeNode,0);//updated inodeList & FBM
         
         int d = 0;
@@ -259,13 +283,16 @@ int ssfs_fopen(char *name){ //index of newsly created/opened entry (disk block N
         }
         
         rootDir.inodeList[d] = freeNode;
-        strcpy(rootDir.filenameList[d],name);
+        memcpy(rootDir.filenameList[d],name, strlen(name));
         
         write_blocks(15,3,&rootDir);
+        printf("copied Filename: %s\n",rootDir.filenameList[d] );
         
         openFiles[k].inodeNum = freeNode;
         openFiles[k].read = 0;
         openFiles[k].write = 0;
+        
+        
         return k;
         
     }
@@ -299,10 +326,12 @@ int ssfs_fwrite(int fileID, char *buf, int length){
     if (openFiles[fileID].inodeNum == -1)//file not open
         return -1;
 
+    
+    
     int inodeNum = openFiles[fileID].inodeNum;
     int fileSize = inodeList[inodeNum].size;
     //need to check that write pointer is within size?
-    
+    printf("IN WRITE BLOCK\n");
     if((openFiles[fileID].write != (fileSize-1)) && ((fileSize)>1) ){//write_p is not at EOF
         //printf("Here\n");
         int filePointers = fileSize/1024;
@@ -317,7 +346,7 @@ int ssfs_fwrite(int fileID, char *buf, int length){
             bufAble = length;
         }
         char bufCopy[bufAble];
-        strncpy(bufCopy, buf, bufAble);
+        memcpy(bufCopy, buf, bufAble);
         //make a list of length (inodesNeeded) and store the index of all inode pointers
         //then find where the write pointer is at use that as a starting write location
         
@@ -398,12 +427,135 @@ int ssfs_fwrite(int fileID, char *buf, int length){
         //do we have enough space? (if not return -1)
         //will this require multiple inodes?
         //do we have enough inodes? <-- probably
+        printf("in EOF BLOCK\n");
+        int freeBlocks = getNumFreeBlocks();
+        int spaceAtLastBlock = fileSize % 1024;
+        int newBlocksNeeded = ceil((length-spaceAtLastBlock)/1024);
+        printf("new blocks needed: %d\n", newBlocksNeeded);
+        printf("free blocks: %d\n", freeBlocks);
+        if (freeBlocks < newBlocksNeeded)
+            return -1; //too big, doesnt have enough space to write
         
+        int fileBlocks = ceil(fileSize/1024); //blocks occupied by file as is
+        if(fileSize == 0)
+            fileBlocks = 1;
+        printf("blocks occupied by file: %d\n", fileBlocks);
+        int inodePointers[fileBlocks + newBlocksNeeded];//will contain pointers to newblocks and write block
+
+        
+        int inodeLink = inodeNum;
+        int nextNode =1;
+        
+        for(int i = 1; i <= (fileBlocks + newBlocksNeeded); i++){//need to fill up inodepointer Array
+            //int nextInode = ceil(i/14); //indicates what inode of the file we are on
+            int pointer = i%14;//indicated what pointer of the inode we are on 1-14
+            if(i%14 == 0)
+                pointer = 14;
+            if(inodeList[inodeLink].direct[pointer-1] == -1){
+                inodeList[inodeLink].direct[pointer-1] = getFreeBlock();
+                writeFreeBlock(getFreeBlock());
+            }
+            printf("block in inodePointer: %d\n",inodeList[inodeLink].direct[pointer-1]);
+            
+            inodePointers[i-1] = inodeList[inodeLink].direct[pointer-1];
+            
+            if((nextNode < ceil((i+1)/14)) && i != (fileBlocks + newBlocksNeeded)){//neeed to change inodes
+                nextNode = ceil((i+1)/14);
+                if(inodeList[inodeLink].indirect != -1){
+                    inodeLink = inodeList[inodeLink].indirect; //already a working node linked to it :)
+                }else{
+                    int freeIN = getFreeInode();
+                    if (freeIN == -1)
+                        return -1;
+                    inodeList[inodeLink].indirect =freeIN;
+                    
+                    
+                    linkInodePointers(1, freeIN, 0);//dont care about linked inode size
+                }
+                    
+            }
+            
+            
+        }
+        int writeblock = (openFiles[fileID].write)/1024;//block write is in
+        int writeLoc = (openFiles[fileID].write+1)%1024;//location to start writing
+        if(fileSize == 0)
+            writeLoc =0;
+
+        int start = 0;
+        int stop = 1023 - writeLoc; //could be 0 if only one byte is being written
+        printf("stop here is: %d\n", stop);
+        
+        char bufCopy[length];
+        memcpy(bufCopy, buf, length);
+        
+        if(length < stop+1)
+            stop = length-1;
+        printf("stop here is: %d\n", stop);
+        if(writeLoc != 0){//there is space to fill at the end of block
+            printf("iin write LOOP\n");
+            int byteNum = stop +1;
+            char blockTemp[1024];
+            read_blocks(inodePointers[writeblock], 1, blockTemp);
+            printf("bufCopy is: %s\n", bufCopy);
+            for(int i = 0; i < byteNum; i++){
+                printf("[%d] ",writeLoc+i);
+                printf("bufCopy: %c\n",bufCopy[start+i]);
+                blockTemp[writeLoc+i]=bufCopy[start+i]; //will this work?
+                printf("bufCopy: %c\n",blockTemp[writeLoc+i]);
+            }
+            write_blocks(inodePointers[writeblock], 1, blockTemp);
+            printf("entry is: %s\n", blockTemp);
+            if (stop == length - 1)
+                return length;
+            
+            start = stop + 1;
+            
+            if(length-1-stop < 1024){//whats left wont fill whole block, ie in last block
+                stop = length-1;
+            }else {
+                stop = stop + 1024;
+            }
+            writeblock++;//next block to be read and modified
+            
+        }
+        
+        while(start != length){
+            char blockTemp[1024];
+            int byteNum = stop - start +1;
+            read_blocks(inodePointers[writeblock], 1, blockTemp);
+            printf("entry is: %s\n", blockTemp);
+            //blockTemp[6] = '\0';
+            printf("entry isC: %c\n", blockTemp[6]);
+            for(int i = 0; i < byteNum; i++){
+                blockTemp[writeLoc+i]=bufCopy[start+i]; //will this work?
+                printf("blockTemp[%d] <== %c\n",writeLoc+i,bufCopy[start+i]);
+            }
+            write_blocks(inodePointers[writeblock], 1, blockTemp);
+            printf("entry is: %s\n", blockTemp);
+            printf("entry is: %c\n", blockTemp[5]);
+            printf("entry is: %c\n", blockTemp[6]);
+            
+
+            start = stop + 1;
+            
+            
+            if(length-1-stop < 1024){//whats left wont fill whole block, ie in last block
+                stop = length-1;
+            }else {
+                stop = stop + 1024;
+            }
+            writeblock++;//next block to be read and modified
+        }
+        
+        
+        
+        return length;
     }
     
 
     
-    return 0;
+    return -1;
 }
 int ssfs_fread(int fileID, char *buf, int length){
     if (openFiles[fileID].inodeNum == -1)//file not open
@@ -413,7 +565,55 @@ int ssfs_fread(int fileID, char *buf, int length){
     return 0;
 }
 int ssfs_remove(char *file){//remove inode, rootDir reference, and openFile if open
+    int j =0;
+    char *dirName = rootDir.filenameList[j];
+    while (strcmp(dirName,file) != 0){
+        j++;
+        if(j == 201)
+            return -1;//file name not found
+        dirName =rootDir.filenameList[j];
+    }
+    
+    int inodeNum = rootDir.inodeList[j];
+    for(int i = 0; i < 200; i++){ //close file if one was opened
+        if(openFiles[i].inodeNum == inodeNum){
+            openFiles[i].inodeNum = -1;
+            openFiles[i].read = -1;
+            openFiles[i].write = -1;
+        }
+    }
+    
+    rootDir.inodeList[j] = -1;
+    strcpy(rootDir.filenameList[j],"-1");
+    write_blocks(15,3,&rootDir);//write back to mem rootDir
+    
+    inode_t inode = {.size = -1, .direct = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1}, .indirect = -1};
+    inodeList[inodeNum] = inode;
+    write_blocks(2, 13, &inodeList);
+    
     return 0;
+}
+
+int display(void){
+    printf("\trootDir: \n");
+    for(int i =0; i < 200; i++){
+        if(rootDir.inodeList[i] != -1)
+            printf("\t\t%s\n",rootDir.filenameList[i]);
+    }
+    printf("\n\tOpened Files: \n");
+    for(int i =0; i < 200; i++){
+        
+        if(openFiles[i].inodeNum != -1){
+            char *fileText[1024];
+            //ssfs_fread(i, fileText, length);
+            for(int k =0; k < 200; k++){
+                if(rootDir.inodeList[k] == openFiles[i].inodeNum)
+                    printf("\t\t[%d] %s\t\t",i,rootDir.filenameList[i]);
+            }
+            printf("%s\n",fileText);
+        }
+    }
+    return 1;
 }
 
 
@@ -422,6 +622,8 @@ int main(void){
     ssfs_fopen("textfile");
     ssfs_fopen("textme");
     ssfs_fopen("texte");
-    ssfs_fwrite(1, "xxaxabcedfghi", 13);
+    int len = ssfs_fwrite(1, "xxaxab", 6);
+    printf("length: %d\n",len);
+    display();
 
 }
