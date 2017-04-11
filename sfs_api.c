@@ -441,10 +441,7 @@ int ssfs_fwrite(int fileID, char *buf, int length){
         
         return bufAble;
         
-    }else {//write_p is at EOF. file can get bigger
-        //how many blocks is the buffer gonna take?
-        //do we have enough space? (if not return -1)
-        //will this require multiple inodes?
+    }else {
         
         printf("in EOF BLOCK\n");
         int freeBlocks = getNumFreeBlocks();
@@ -554,7 +551,7 @@ int ssfs_fwrite(int fileID, char *buf, int length){
             printf("\nWRITEBLOCK IS: %d\n",writeblock);
             printf("\<<<>>>>inodePointer points to: %d\n",inodePointers[writeblock]);
             read_blocks(inodePointers[writeblock], 1, blockTemp);
-            printf("\n.....Fetched block is: %s\n", blockTemp);
+            //printf("\n.....Fetched block is: %s\n", blockTemp);
 //            printf("entry is: %s\n", blockTemp);
             //blockTemp[6] = '\0';
 //            printf("entry isC: %c\n", blockTemp[6]);
@@ -566,16 +563,16 @@ int ssfs_fwrite(int fileID, char *buf, int length){
             printf("****writing block back into mem\n");
             write_blocks(inodePointers[writeblock], 1, blockTemp);
             
-            printf("OVERWRITTEN BLOCK IS: %s\n", blockTemp);
+           // printf("OVERWRITTEN BLOCK IS: %s\n", blockTemp);
 //            printf("entry is: %s\n", blockTemp);
 //            printf("entry is: %c\n", blockTemp[5]);
 //            printf("entry is: %c\n", blockTemp[6]);
             
             //testing.... trying to fetch back block
             char testblock[1024] = {0};
-//            printf("InodePOINTER IS: %d\n",inodePointers[writeblock]);
+            //printf("InodePOINTER IS: %d\n",inodePointers[writeblock]);
             read_blocks(inodePointers[writeblock], 1,testblock);
-//            printf("entry is: %s\n", testblock);
+            //printf("213412341234entry is: %s\n", testblock);
 //            printf("entry is: %c\n", testblock[5]);
 //            printf("entry is: %c\n", testblock[6]);
             start = stop + 1;
@@ -603,7 +600,6 @@ int ssfs_fwrite(int fileID, char *buf, int length){
     return -1;
 }
 int ssfs_fread(int fileID, char *buf, int length){
-    
     if(fileID >= 200 || fileID<0)//prevent out of bound & not negative
         return -1;
     if (openFiles[fileID].inodeNum == -1)//file not open
@@ -612,8 +608,8 @@ int ssfs_fread(int fileID, char *buf, int length){
     //printf("size: %d\n", inodeList[openFiles[fileID].inodeNum].size);
     //printf("read: %d\n", openFiles[fileID].read);
     //printf("readLength: %d\n", readLength);
-    if(readLength > length)
-        return -1; //length too long
+    //if(readLength > length)
+        //return -1; //length too long
     //need to get inodePointers
     //printf("READING...\n");
     int blocksNeeded = (int)ceil((double)length/1024);//# of blocks needed from 0 to hopefully read pointer
@@ -636,6 +632,7 @@ int ssfs_fread(int fileID, char *buf, int length){
       //  printf("^pointer NUM is: %d\n", pointer);
         inodePointers[i-1] = inodeList[inodeLink].direct[pointer-1];
         
+        //printf("-----block pointed to: %d\n", inodePointers[i-1]);
         
         if((nextNode < ceil((i+1)/14)) && i != blocksNeeded){//neeed to change inodes
             nextNode = ceil((i+1)/14);
@@ -667,11 +664,13 @@ int ssfs_fread(int fileID, char *buf, int length){
     int readIndex = 0;
     //char blockTemp[1024];
     read_blocks(inodePointers[startingBlock], 1, blockTemp);
+//    printf("InodePOINTER IS: %d\n",inodePointers[startingBlock]);
+//    printf("DOWNLOADED BLOCK IS: %s\n", blockTemp);
     while( (i) != length){//copying byte by byte
 
         
         
-     
+        //printf("byte is: %c\n",blockTemp[readIndex]);
         readBuf[i] = blockTemp[readIndex];
    
         i++;
@@ -683,6 +682,8 @@ int ssfs_fread(int fileID, char *buf, int length){
         }
         
     }
+    
+    //printf("READ BUF: %s\n",readBuf);
     strcpy(buf, readBuf);
     openFiles[fileID].read= inodeList[inodeNum].size -1;
     if (inodeList[inodeNum].size == 0)
