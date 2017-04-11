@@ -615,7 +615,6 @@ int ssfs_fread(int fileID, char *buf, int length){
     if(readLength > length)
         return -1; //length too long
     //need to get inodePointers
-    
     //printf("READING...\n");
     int blocksNeeded = (int)ceil((double)length/1024);//# of blocks needed from 0 to hopefully read pointer
     if(length == 0)
@@ -646,7 +645,6 @@ int ssfs_fread(int fileID, char *buf, int length){
         
     }
     
-    
     char blockTemp[1024] = {0};
     char readBuf[length+1];
     for(int i = 0; i <= length; i++){
@@ -669,7 +667,6 @@ int ssfs_fread(int fileID, char *buf, int length){
     int readIndex = 0;
     //char blockTemp[1024];
     read_blocks(inodePointers[startingBlock], 1, blockTemp);
-    
     while( (i) != length){//copying byte by byte
 
         
@@ -686,9 +683,10 @@ int ssfs_fread(int fileID, char *buf, int length){
         }
         
     }
-    
     strcpy(buf, readBuf);
     openFiles[fileID].read= inodeList[inodeNum].size -1;
+    if (inodeList[inodeNum].size == 0)
+        openFiles[fileID].read= 0 ;
     return length;
 }
 int ssfs_remove(char *file){//remove inode, rootDir reference, and openFile if open
@@ -722,6 +720,7 @@ int ssfs_remove(char *file){//remove inode, rootDir reference, and openFile if o
 }
 
 int display(void){
+    printf("read pointer of inode 0: %d\n",openFiles[0].read);
     printf("\trootDir: \n");
     for(int i =0; i < 200; i++){
         if(rootDir.inodeList[i] != -1)
@@ -736,7 +735,7 @@ int display(void){
             
             for(int k =0; k < 200; k++){
                 if(rootDir.inodeList[k] == openFiles[i].inodeNum)
-                    printf("\t\t[%d] %s\tr:%d  w:%d   ",i,rootDir.filenameList[i],openFiles[i].read, openFiles[i].write);
+                    printf("\t\t[%d] %s\tr:%d  w:%d   ",i, rootDir.filenameList[i] ,openFiles[i].read, openFiles[i].write);
             }
             printf("\t: %s\n",fileText);
         }
@@ -744,7 +743,7 @@ int display(void){
     return 1;
 }
 
-/*
+
 int main(void){
     mkssfs(1);
     ssfs_fopen("textfile");
@@ -764,4 +763,4 @@ int main(void){
 
 }
 
-*/
+
