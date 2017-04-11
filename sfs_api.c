@@ -731,8 +731,8 @@ int display(void){
     for(int i =0; i < 200; i++){
         
         if(openFiles[i].inodeNum != -1){
-            char *fileText[20] = {0};
-            ssfs_fread(i, fileText, 20);
+            char *fileText[100] = {0};
+            ssfs_fread(i, fileText, 100);
             
             for(int k =0; k < 200; k++){
                 if(rootDir.inodeList[k] == openFiles[i].inodeNum)
@@ -753,13 +753,14 @@ int main(void){
     display();
     ssfs_fopen("texte");
     display();
-    char *sentence = "...>>>>The ssfs_fopen() opens a file and returns an integer that corresponds to the index of the entry for the newly opened file in the file descriptor table. If the file does not exist, it creates a new file and sets its size to 0. If the file exists, the file is opened in append mode (i.e., set the write file pointer to the end of the file and read at the beginning of the file). The ssfs_fclose() closes a file, i.e., removes the entry from the open file descriptor table. On success, ssfs_fclose() should return 0 and a negative value otherwise. The ssfs_fwrite() writes the given number of bytes of buffered data in buf into the open file, starting from the current write file pointer. This in effect could increase the size of the file by the given number of bytes (it may not increase the file size by the number of bytes written if the write pointer is located at a location other than the end of the file). The ssfs_fwrite() should return the number of bytes written. The ssfs_fread() follows a similar behavior. @@@ ssfs_rfseek() moves the read pointer and ssfs_wfseek() moves the write pointer to the given location. It returns 0 on success and a &*&*&*&*&*&*&";
+    char *sentence = "...>>>>The ssfs_fopen() opennnmmmaaa";
     int len = ssfs_fwrite(1,sentence,strlen(sentence));
     printf("length: %d\n",len);
-    char *buffer[20] = {0};
+    char *buffer[100] = {0};
     printf("BUFFER IS NOW: %s\n",buffer);
-    ssfs_fread(1,buffer,20);
+    ssfs_fread(1,buffer,100);
     printf("BUFFER IS NOW: %s\n",buffer);
+    
     display();
 
 }
