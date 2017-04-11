@@ -754,12 +754,17 @@ int main(void){
     ssfs_fopen("texte");
     display();
     char *sentence = "...>>>>The ssfs_fopen() opennnmmmaaa";
+    char *sentence2 = "1234566789999900000000000000000000000000xxx";
     int len = ssfs_fwrite(1,sentence,strlen(sentence));
-    printf("length: %d\n",len);
-    char *buffer[100] = {0};
-    printf("BUFFER IS NOW: %s\n",buffer);
-    ssfs_fread(1,buffer,100);
-    printf("BUFFER IS NOW: %s\n",buffer);
+    ssfs_fwseek(1, 20);
+    int len2 = ssfs_fwrite(1,sentence2,strlen(sentence2));
+    
+    
+//    printf("length: %d\n",len);
+//    char *buffer[100] = {0};
+//    printf("BUFFER IS NOW: %s\n",buffer);
+//    ssfs_fread(1,buffer,100);
+//    printf("BUFFER IS NOW: %s\n",buffer);
     
     display();
 
