@@ -137,26 +137,38 @@ If offset is greater than write pointer, write pointer is set to zero.
 */
 int test_seek(int *file_id, int *file_size, int *write_ptr, char **write_buf, int num_file, int offset, int *err_no){
   int res;
-  for(int i = 0; i < num_file; i++){
+    for(int i = 0; i < num_file; i++){
     //Just testing the shift for beyond seek boundaries before actually doing it. 
     res = ssfs_frseek(file_id[i], -1);
+        printf("1)r: -1\n");
     if(res >= 0)
       fprintf(stderr, "Warning: ssfs_frseek returned positive. Negative seek location attempted. Potential frseek fail?\n");
+        
     res = ssfs_frseek(file_id[i], file_size[i] + 100);
+        printf("2)r: %d\n", file_size[i] + 100);
     if(res >= 0)
       fprintf(stderr, "Warning: ssfs_frseek returned positive. Seek location beyond file size attempted. Potential frseek fail?\n");
+        
     res = ssfs_fwseek(file_id[i], -1);
+        printf("3)w: %d\n", -1);
     if(res >= 0)
       fprintf(stderr, "Warning: ssfs_frseek returned positive. Negative seek location attempted. Potential fwseek fail?\n");
+        
     res = ssfs_fwseek(file_id[i], file_size[i] + 100);
+        printf("4)w: %d\n", file_size[i] + 100);
     if(res >= 0)
       fprintf(stderr, "Warning: ssfs_frseek returned positive. Seek location beyond file size attempted. Potential fwseek fail?\n");
+        
     res = ssfs_frseek(file_id[i], file_size[i] - offset);
+               printf("5)r: %d\n", file_size[i] - offset);
     if(res < 0)
       fprintf(stderr, "Warning: ssfs_frseek returned negative. Potential frseek fail?\n");
+        
     res = ssfs_fwseek(file_id[i], file_size[i] - offset);
+               printf("6)w: %d\n", file_size[i] - offset);
     if(res < 0)
       fprintf(stderr, "Warning: ssfs_fwseek returned negative. Potential fwseek fail?\n");
+        
     write_ptr[i] -= offset;
     if(write_ptr[i] < 0)
       write_ptr[i] = 0;
@@ -178,11 +190,13 @@ int test_read_all_files(int *file_id, int *file_size, char **write_buf, int num_
     if(res < 0)
       fprintf(stderr, "Warning: ssfs_frseek returned negative. Potential frseek fail?\n");
     res = ssfs_fread(file_id[i], buf, file_size[i]);
+    printf("RES: %d\n",res);
     //Just a precaution. Don't think it's actually necessary
     buf[file_size[i]] = '\0';
     if(res != file_size[i])
       fprintf(stderr, "Warning: ssfs_fread should return number of bytes read. Potential read fail?\n");
     //Compare both
+      //printf("Buf: %d\n", );
     if(strcmp(buf, write_buf[i]) != 0){
       fprintf(stderr, "Error: \nRead failed.\n\n");
       *err_no += 1;
@@ -233,6 +247,8 @@ int test_simple_write_files(int *file_id, int *file_size, int *write_ptr, char *
       file_size[i] = write_ptr[i];
     write_buf[i][file_size[i]] = '\0'; 
     res = ssfs_fwrite(file_id[i], test_str, strlen(test_str));
+      printf("RES WRITE: %d\n", res);
+      printf("test_str: %d\n", strlen(test_str));
     if(res != strlen(test_str))
       fprintf(stderr, "Warning: ssfs_fwrite should return number of bytes written. Potential write fail?\n");
   }
@@ -342,7 +358,8 @@ int test_difficult_write_files(int *file_id, int *file_size, int *write_ptr, cha
         return -1;
     }
     memcpy(write_buf[i] + sizeof(char) * write_ptr[i], text, strlen(text));
-    //Change write location 
+    //Change write location
+      printf("here\n");
     res = ssfs_fwseek(file_id[i], write_ptr[i]);
     if(res < 0)
       fprintf(stderr, "Warning: ssfs_fwseek returned negative. Potential fwseek fail?\n");
@@ -385,7 +402,8 @@ int test_write_to_overflow(int *file_id, int *file_size, char **write_buf, int i
     buffer[i] = calloc(MAX_WRITE_BYTE + 1, 1);
   }
   printf("Attempting to write to file cap. This will take a while\n");
-      //Change the seek to the end of file.  
+      //Change the seek to the end of file.
+    printf("here\n");
   res = ssfs_fwseek(file_id[index], file_size[index]);
   if(res < 0)
         fprintf(stderr, "Warning: ssfs_frseek returned negative. Potential frseek fail?\n");

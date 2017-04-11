@@ -262,9 +262,11 @@ int ssfs_fopen(char *name){ //index of newsly created/opened entry (disk block N
         //int inodeMod = inodeSize%BlockSize;
         openFiles[k].read = (inodeSize-1);
         openFiles[k].write = (inodeSize-1);//is this correct? YES
-        
+        if(inodeSize == 0){
+            openFiles[k].read = 0;
+            openFiles[k].write = 0;
+        }
 //        printf("inodeNum is: %d\n", openFiles[k].inodeNum);
-//        printf("read is: %d\n", openFiles[k].read);
         return k;
     }else{
         //if file not found create a new entry (get inode and point it to free block) set size to 0 and add to openFile/return index its in
@@ -327,10 +329,10 @@ int ssfs_fwseek(int fileID, int loc){
         return -1;
     if(loc < 0 || loc > inodeList[openFiles[fileID].inodeNum].size-1)
         return -1; //is loc out of bound
-    printf("=====================changing write to ======> %d\n", loc);
     openFiles[fileID].write = loc;
     return 0;
 }
+
 int ssfs_fwrite(int fileID, char *buf, int length){
     if (openFiles[fileID].inodeNum == -1)//file not open
         return -1;
@@ -610,7 +612,7 @@ int ssfs_fread(int fileID, char *buf, int length){
     //printf("size: %d\n", inodeList[openFiles[fileID].inodeNum].size);
     //printf("read: %d\n", openFiles[fileID].read);
     //printf("readLength: %d\n", readLength);
-    if(readLength < length)
+    if(readLength > length)
         return -1; //length too long
     //need to get inodePointers
     
@@ -667,14 +669,12 @@ int ssfs_fread(int fileID, char *buf, int length){
     int readIndex = 0;
     //char blockTemp[1024];
     read_blocks(inodePointers[startingBlock], 1, blockTemp);
-    //printf("length ISSS: %d\n",length);
+    
     while( (i) != length){//copying byte by byte
 
-        //TODO: inodePointers[readblock] is giving me -1 :(
         
         
-      //  printf("InodePOINTER IS: %d\n",inodePointers[readblock]);
-        //printf("writing byte %d :%c\n", i, blockTemp[readIndex]);
+     
         readBuf[i] = blockTemp[readIndex];
    
         i++;
@@ -687,11 +687,7 @@ int ssfs_fread(int fileID, char *buf, int length){
         
     }
     
-    //readBuf[length] = '\0';
-    //printf("~~~~FILE CONTENT: %s\n", readBuf);
     strcpy(buf, readBuf);
-    //memcpy(buf, readBuf, length);
-    //buf = readBuf;
     openFiles[fileID].read= inodeList[inodeNum].size -1;
     return length;
 }
@@ -767,4 +763,5 @@ int main(void){
     display();
 
 }
+
 */
