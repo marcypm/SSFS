@@ -126,7 +126,7 @@ int test_persistence(int *error, int write_length){
         error_num = WEXITSTATUS(error_num);
     }
     *error += error_num;
-    printf("\n-------------------------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *error);
+    printf("\n--------------1----------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *error);
     test_num++;
     return 0;
 }
@@ -190,7 +190,7 @@ int test_read_all_files(int *file_id, int *file_size, char **write_buf, int num_
     }
   }
   free(buf);
-  printf("\n-------------------------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
+  printf("\n---------------2---------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
   test_num++;
   return 0;
 }
@@ -201,9 +201,12 @@ Reads a simple sentence from the block. The sentence is test_str
 int test_simple_read_files(int *file_id, int *file_size, char **write_buf, int num_file, int *err_no){
   int res;
   char buf[512];
+    display();
   for(int i = 0; i < num_file; i++){
     //Read at the read_ptr location
     res = ssfs_fread(file_id[i], buf, strlen(test_str));
+      printf("want to read file[%d] of length: %d\n", i,strlen(test_str) );
+      printf("res is: %d\n", res);
     buf[strlen(test_str)] = '\0';
     if(res != strlen(test_str))
       fprintf(stderr, "Warning: ssfs_fread should return number of bytes read. Potential read fail?\n");
@@ -212,7 +215,7 @@ int test_simple_read_files(int *file_id, int *file_size, char **write_buf, int n
       *err_no += 1;
     }
   }
-  printf("\n-------------------------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
+  printf("\n---------------3---------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
   test_num++;
   return 0;
 }
@@ -301,7 +304,7 @@ int test_random_read_files(int *file_id, int *file_size, int *write_ptr, char **
     write_buf[i][start_index + read_length] = temp;
     free(buf);
   }
-  printf("\n-------------------------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
+  printf("\n-------------4-----------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
   test_num++;
   return 0;
 }
@@ -334,7 +337,7 @@ int test_difficult_write_files(int *file_id, int *file_size, int *write_ptr, cha
     //If we reach the max bytes, we will stop. 
     if(write_ptr[i] + strlen(text) >= MAX_BYTES - 1){
         free(text);
-        printf("\n-------------------------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
+        printf("\n------------5------------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
         test_num++;
         return -1;
     }
@@ -360,7 +363,7 @@ int test_difficult_write_files(int *file_id, int *file_size, int *write_ptr, cha
     test_difficult_read_files(file_id, file_size, write_ptr, write_buf, i, strlen(text), err_no);
     free(text);
   }
-  printf("\n-------------------------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
+  printf("\n---------------6---------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
   test_num++;
   return res;
 }  
@@ -431,7 +434,7 @@ int test_write_to_overflow(int *file_id, int *file_size, char **write_buf, int i
     }
     start_index += read_length;
   }
-  printf("\n-------------------------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
+  printf("\n-----------------7-------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
   test_num++;
   for(int i = 0; i < ABS_CAP_FILE_SIZE/MAX_WRITE_BYTE + 1; i++){
     free(buffer[i]);
@@ -480,7 +483,7 @@ int test_read_write_out_of_bound(int *file_id, int *file_sizes, char **file_name
         }
         free(buf);
     }
-    printf("\n-------------------------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
+    printf("\n-----------------8-------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
     test_num++;
     return 0;
 }
@@ -545,7 +548,7 @@ int test_overflow_open(int *file_id, int *file_sizes, int *write_ptr, char **fil
   //Remove all the files. 
   test_remove_files(file_id, file_sizes, write_ptr, file_names, write_buf, ret, err_no);
   free_name_element(file_names, ret);
-  printf("\n-------------------------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
+  printf("\n----------------9--------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
   test_num++;
 
   //Returns the max number of files your file system can support or 1000 I think. 
@@ -568,7 +571,7 @@ int test_remove_files(int *file_id, int *file_size, int *write_ptr, char **file_
     free(file_names[i]);
     file_names[i] = NULL;
   }
-  printf("\n-------------------------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
+  printf("\n---------------10----------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
   test_num++;
   return 0;
 }
@@ -627,7 +630,7 @@ int test_close_files(char **file_names, int *file_id, int num_file, int *err_no)
       fprintf(stderr, "Failed to read. This is OK.\n");
     }
   }
-  printf("\n-------------------------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
+  printf("\n-------------11-----------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
   test_num++;
   return 0;
 }
@@ -665,7 +668,7 @@ int test_open_new_files(char **file_names, int *file_id, int num_file, int *err_
       }
     }
   }
-  printf("\n-------------------------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
+  printf("\n---------------12---------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
   test_num++;
   return 0;
 }
@@ -700,7 +703,7 @@ int test_open_old_files(char **file_names, int *file_id, int num_file, int *err_
       }
     }
   }
-  printf("\n-------------------------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
+  printf("\n--------------13----------------\nTest_num[%d]: Current Error Num: %d\n--------------------------------\n\n", test_num, *err_no);
   test_num++;
   return 0;
 }

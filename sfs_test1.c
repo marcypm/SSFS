@@ -27,6 +27,7 @@ int simple_test(){
   //Reopen them after closing
   test_open_old_files(file_names, file_id, num_file, &err_no);
   //Now will attempt to write to file, very small chunk of text
+    printf("\n\n OOOOOOOOOOOOO \n\n");
   for(int i = 0; i < iterations; i++){
     test_simple_write_files(file_id, file_size, write_ptr, write_buf, num_file, &err_no);
     test_simple_read_files(file_id, file_size, write_buf, num_file, &err_no);
@@ -34,6 +35,7 @@ int simple_test(){
     if(i < iterations - 1) //Fun with frseek and fwseek
       test_seek(file_id, file_size, write_ptr, write_buf, num_file, 10, &err_no);
   }
+    printf("\n\n HEREHEHREHREHHREHRE \n\n");
   //test close + reading
   test_close_files(file_names, file_id, num_file, &err_no);
   test_open_old_files(file_names, file_id, num_file, &err_no);
