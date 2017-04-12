@@ -140,22 +140,22 @@ int test_seek(int *file_id, int *file_size, int *write_ptr, char **write_buf, in
     for(int i = 0; i < num_file; i++){
     //Just testing the shift for beyond seek boundaries before actually doing it. 
     res = ssfs_frseek(file_id[i], -1);
-        printf("1)r: -1\n");
+        //printf("1)r: -1\n");
     if(res >= 0)
       fprintf(stderr, "Warning: ssfs_frseek returned positive. Negative seek location attempted. Potential frseek fail?\n");
         
     res = ssfs_frseek(file_id[i], file_size[i] + 100);
-        printf("2)r: %d\n", file_size[i] + 100);
+        //printf("2)r: %d\n", file_size[i] + 100);
     if(res >= 0)
       fprintf(stderr, "Warning: ssfs_frseek returned positive. Seek location beyond file size attempted. Potential frseek fail?\n");
         
     res = ssfs_fwseek(file_id[i], -1);
-        printf("3)w: %d\n", -1);
+        //printf("3)w: %d\n", -1);
     if(res >= 0)
       fprintf(stderr, "Warning: ssfs_frseek returned positive. Negative seek location attempted. Potential fwseek fail?\n");
         
     res = ssfs_fwseek(file_id[i], file_size[i] + 100);
-        printf("4)w: %d\n", file_size[i] + 100);
+        //printf("4)w: %d\n", file_size[i] + 100);
     if(res >= 0)
       fprintf(stderr, "Warning: ssfs_frseek returned positive. Seek location beyond file size attempted. Potential fwseek fail?\n");
         
@@ -169,6 +169,8 @@ int test_seek(int *file_id, int *file_size, int *write_ptr, char **write_buf, in
     if(res < 0)
       fprintf(stderr, "Warning: ssfs_fwseek returned negative. Potential fwseek fail?\n");
         
+    //res = ssfs_frseek(file_id[i], file_size[i]-1);
+    //res = ssfs_fwseek(file_id[i], file_size[i]-1);
     write_ptr[i] -= offset;
     if(write_ptr[i] < 0)
       write_ptr[i] = 0;
