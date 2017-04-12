@@ -169,8 +169,8 @@ int test_seek(int *file_id, int *file_size, int *write_ptr, char **write_buf, in
     if(res < 0)
       fprintf(stderr, "Warning: ssfs_fwseek returned negative. Potential fwseek fail?\n");
         
-    //res = ssfs_frseek(file_id[i], file_size[i]-1);
-    //res = ssfs_fwseek(file_id[i], file_size[i]-1);
+    //res = ssfs_frseek(file_id[i], file_size[i]);
+   // res = ssfs_fwseek(file_id[i], file_size[i]);
     write_ptr[i] -= offset;
     if(write_ptr[i] < 0)
       write_ptr[i] = 0;
