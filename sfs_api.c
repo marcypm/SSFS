@@ -72,7 +72,8 @@ int getFreeInode();
 int writeFreeBlock();
 int linkInodePointers(int nblocks, int inodeNum, int inodeSize);
 int getNumFreeBlocks();
-int display(void);
+int display(int display);
+int disp = 0; //Change to bring up file system display everytime a file is writen to or added to system
 
 void mkssfs(int fresh){
 
@@ -88,7 +89,6 @@ void mkssfs(int fresh){
     
         for(int i =0; i < BlockNumber; i++){//initialize empty block (all 1)
             FBM.bytes[i] = 1;
-            //printf("block %d is: %u\n",i, FBM.bytes[i]);
         }
 
         for(int i = 0; i < 13; i++){ //takes care inodeList (superblock and FBM are't track by FBM)
@@ -112,8 +112,6 @@ void mkssfs(int fresh){
         superblock_t superblock = {"ssfs", BlockSize, jnode};
         write_blocks(0, 1, &superblock);//superblock
         
-//        printf("superblock magic num: %s\n",superblock.magic);
-//        printf("superblock jnode pointers: %d, %d, %d, %d\n", superblock.jroot.direct[0],superblock.jroot.direct[1],superblock.jroot.direct[2],superblock.jroot.direct[3]);
 
         
         linkInodePointers(3,getFreeInode(), 3000);//should link free inode's pointers to free FBM blocks and set them to 0 & set inode size
@@ -135,17 +133,6 @@ void mkssfs(int fresh){
         }
         
 
-        //printf("size of rootDir: %lu\n", sizeof(rootDir));//400
-        //printf("size of inodeList: %lu\n", sizeof(inodeList));//12800
-
-        
-        /* QUESTIONS:
-         
-                      Magic number of superblock?
-
-
-        */
-
     }else{//retrieve old file system
         init_disk("ssfs_disk", BlockSize, BlockNumber);
         
@@ -160,7 +147,6 @@ void mkssfs(int fresh){
         read_blocks(15,3,&rootDir);
         read_blocks(2,13,&inodeList);
         
-        //testing....
         
         
     }
@@ -170,14 +156,11 @@ void mkssfs(int fresh){
 int linkInodePointers(int nblocks, int inodeNum, int inodeSize){//Link free inode's pointers to free FBM blocks and set them to 0 & set size
     
         inodeList[inodeNum].size = inodeSize; //set inodes size
-        //inodeList[inodeNum].direct[]
         for(int i = 0; i < nblocks; i++){
             int freeB = getFreeBlock(); //get free block
             inodeList[inodeNum].direct[i] = freeB+2;
             writeFreeBlock(freeB);
-            printf("^^^NODE POINTS TO BLOCK: %d\n",freeB+2);
-//            char blockTemp[1024]= {'\0'};
-//            write_blocks(freeB+2,1,blockTemp);
+
             
             
         }
@@ -190,7 +173,6 @@ int linkInodePointers(int nblocks, int inodeNum, int inodeSize){//Link free inod
 int getFreeInode(){// returns the index of free inode in inodeList
     
     for(int i =0; i < 200; i++){
-//        printf("inode[%d] size: %d\n",i, inodeList[i].size);
         if(inodeList[i].size == -1){
             return i;
         }
@@ -221,7 +203,6 @@ int writeFreeBlock(int free){ //FBM changes availability to 0
 
     
     if (FBM.bytes[free] == 0){//aready occupied
-        printf("TAKEN\n");
         return -1;
     }
     
@@ -255,26 +236,23 @@ int ssfs_fopen(char *name){ //index of newsly created/opened entry (disk block N
             break;
     }
     if(strcmp(dirName,name) == 0){ //found file with corresponding name, at entry of rootDir j
-        printf("FILE FOUND!\n");
         openFiles[k].inodeNum = rootDir.inodeList[j];
         
         int inodeSize = inodeList[rootDir.inodeList[j]].size;
-        //int inodeMod = inodeSize%BlockSize;
         openFiles[k].read = (inodeSize-1);
         openFiles[k].write = (inodeSize-1);//is this correct? YES
         if(inodeSize == 0){
             openFiles[k].read = 0;
             openFiles[k].write = 0;
         }
-//        printf("inodeNum is: %d\n", openFiles[k].inodeNum);
+
+        display(disp);
         return k;
     }else{
         //if file not found create a new entry (get inode and point it to free block) set size to 0 and add to openFile/return index its in
-        printf("FILE NOT FOUND\n");
         //update FBM, rootDir, inodeList
         
         int freeNode = getFreeInode();
-//        printf("FREENODE: %d\n", freeNode);
         linkInodePointers(1,freeNode,0);//updated inodeList & FBM
         
         int d = 0;
@@ -288,13 +266,12 @@ int ssfs_fopen(char *name){ //index of newsly created/opened entry (disk block N
         memcpy(rootDir.filenameList[d],name, strlen(name));
         
         write_blocks(15,3,&rootDir);
-//        printf("copied Filename: %s\n",rootDir.filenameList[d] );
-//      printf("openFiles[%d]: \n", k);
+
         openFiles[k].inodeNum = freeNode;
         openFiles[k].read = 0;
         openFiles[k].write = 0;
         
-        
+        display(disp);
         return k;
         
     }
@@ -310,6 +287,7 @@ int ssfs_fclose(int fileID){
     openFiles[fileID].inodeNum = -1;
     openFiles[fileID].read = -1;
     openFiles[fileID].write = -1;
+    display(disp);
     return 0;
 }
 int ssfs_frseek(int fileID, int loc){
@@ -320,6 +298,7 @@ int ssfs_frseek(int fileID, int loc){
     if(loc < 0 || loc > inodeList[openFiles[fileID].inodeNum].size)
         return -1; //is loc out of bound
     openFiles[fileID].read = loc-1;
+    display(disp);
     return 0;
 }
 int ssfs_fwseek(int fileID, int loc){
@@ -330,6 +309,7 @@ int ssfs_fwseek(int fileID, int loc){
     if(loc < 0 || loc > inodeList[openFiles[fileID].inodeNum].size)
         return -1; //is loc out of bound
     openFiles[fileID].write = loc-1;
+    display(disp);
     return 0;
 }
 
@@ -345,16 +325,12 @@ int ssfs_fwrite(int fileID, char *buf, int length){
     int inodeNum = openFiles[fileID].inodeNum;
     int fileSize = inodeList[inodeNum].size;
     int newFileSize = openFiles[fileID].write + 1 + length;
-    //need to check that write pointer is within size?
     
     int newSize = openFiles[fileID].write + 1 + length;
-    printf("***************************************************IN WRITE BLOCK\n");
-    printf("read is at: %d\n", openFiles[fileID].read);
-    printf("write is at: %d\n", openFiles[fileID].write);
-    printf("size is: %d\n", fileSize);
+
     
         
-        printf("in EOF BLOCK\n");
+    
         int freeBlocks = getNumFreeBlocks();
         int spaceAtLastBlock = 1024-((openFiles[fileID].write+1) % 1024);
     
@@ -368,15 +344,12 @@ int ssfs_fwrite(int fileID, char *buf, int length){
         else
             newBlocksNeeded = newBlocksNeeded- (currentBlocksTaken-writePointerBlock);
     
-        printf("new blocks needed: %d\n", newBlocksNeeded);
-//        printf("free blocks: %d\n", freeBlocks);
         if (freeBlocks < newBlocksNeeded)
             return -1; //too big, doesnt have enough space to write
         
         int fileBlocks = ceil((double)fileSize/1024); //blocks occupied by file as is
         if(fileSize == 0)
             fileBlocks = 1;
-        printf("blocks occupied by file: %d\n", fileBlocks);
         int inodePointers[fileBlocks + newBlocksNeeded];//will contain pointers to newblocks and write block
 
         
@@ -384,22 +357,18 @@ int ssfs_fwrite(int fileID, char *buf, int length){
         int nextNode =1;
         
         for(int i = 1; i <= (fileBlocks + newBlocksNeeded); i++){//need to fill up inodepointer Array
-            //int nextInode = ceil(i/14); //indicates what inode of the file we are on
             int pointer = i%14;//indicated what pointer of the inode we are on 1-14
             if(i%14 == 0)
                 pointer = 14;
-            printf("*****inodePointers Loop!!!!!!!\n");
             
             if(inodeList[inodeLink].direct[pointer-1] == -1){
-                printf("need to get another Inode!!!\n");
+                
                 inodeList[inodeLink].direct[pointer-1] = getFreeBlock()+2;
-                printf("block pointed to: %d\n", getFreeBlock()+2);
+                
                 writeFreeBlock(getFreeBlock());
                 
             }
-//            printf("block in inodePointer: %d\n",inodeList[inodeLink].direct[pointer-1]);
-            //printf("~=====Inode pointer points to: %d\n", inodeList[inodeLink].direct[pointer-1]);
-            printf("\nPOINTER IS: %d\n", pointer);
+
             inodePointers[i-1] = inodeList[inodeLink].direct[pointer-1];
             if((nextNode < ceil((i+1)/14)) && i != (fileBlocks + newBlocksNeeded)){//neeed to change inodes
                 nextNode = ceil((i+1)/14);
@@ -419,7 +388,6 @@ int ssfs_fwrite(int fileID, char *buf, int length){
             
             
         }
-        printf("blockPOINTER ARRAY: [%d]=%d , [%d]=%d\n",0,inodeList[inodeLink].direct[0], 1, inodeList[inodeLink].direct[1]  );
         int writeblock = (openFiles[fileID].write)/1024;//block write is in
         int writeLoc = (openFiles[fileID].write+1)%1024;//location to start writing
         if(fileSize == 0)
@@ -427,38 +395,27 @@ int ssfs_fwrite(int fileID, char *buf, int length){
 
         int start = 0;
         int stop = 1023 - writeLoc; //could be 0 if only one byte is being written
-//        printf("stop here is: %d\n", stop);
-        
+    
         char bufCopy[length];
         memcpy(bufCopy, buf, length);
         
         if(length < stop+1){ //if buffer doesnt need all that space to write
-            //printf("........THIS IS EXECUTING.......");
             stop = length-1;
         }
-//        printf("stop here is: %d\n", stop);
         if(writeLoc != 0){//there is space to fill at the end of block
-//            printf("iin write LOOP\n");
             int byteNum = stop +1;
             char blockTemp[1024] = {0};
             read_blocks(inodePointers[writeblock], 1, blockTemp);
-//            printf("bufCopy is: %s\n", bufCopy);
             for(int i = 0; i < byteNum; i++){
-//                printf("[%d] ",writeLoc+i);
-//                printf("bufCopy: %c\n",bufCopy[start+i]);
                 blockTemp[writeLoc+i]=bufCopy[start+i]; //will this work?
-//                printf("bufCopy: %c\n",blockTemp[writeLoc+i]);
             }
-            printf(">***writing block back into mem\n");
             write_blocks(inodePointers[writeblock], 1, blockTemp);
-            printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~SIZE IS NOW: %d\n", newFileSize);
-           // printf("entry is: %s\n", blockTemp);
+
             if (stop == length - 1){
                 openFiles[fileID].write = newFileSize-1;//updates write pointer to point at the end
                 openFiles[fileID].read = newFileSize-1;//updates where the read pointer should be
-                printf("WRITE IS NOW === > %d\n", openFiles[fileID].write);
-                printf("READ IS NOW === > %d\n", openFiles[fileID].read);
                 inodeList[inodeNum].size = newFileSize;
+                display(disp);
                 return length;
             }
             start = stop + 1;
@@ -473,35 +430,21 @@ int ssfs_fwrite(int fileID, char *buf, int length){
         }
         
         while(start != length){
-            char blockTemp[1024] = {'\0'};
+            char blockTemp[1024];
             int byteNum = stop - start +1;
-            printf("\nWRITEBLOCK IS: %d\n",writeblock);
-            printf("\<<<>>>>inodePointer points to: %d\n",inodePointers[writeblock]);
+
             read_blocks(inodePointers[writeblock], 1, blockTemp);
-            //printf("\n.....Fetched block is: %s\n", blockTemp);
-//            printf("entry is: %s\n", blockTemp);
-            //blockTemp[6] = '\0';
-//            printf("entry isC: %c\n", blockTemp[6]);
+
             for(int i = 0; i < byteNum; i++){
-                blockTemp[writeLoc+i]=bufCopy[start+i]; //will this work?
-//                printf("blockTemp[%d] <== %c\n",writeLoc+i,bufCopy[start+i]);
+                blockTemp[writeLoc+i]=bufCopy[start+i];
             }
-            printf("while loop byteNUM:> %d\n", byteNum);
-            printf("****writing block back into mem\n");
+
             write_blocks(inodePointers[writeblock], 1, blockTemp);
             
-           // printf("OVERWRITTEN BLOCK IS: %s\n", blockTemp);
-//            printf("entry is: %s\n", blockTemp);
-//            printf("entry is: %c\n", blockTemp[5]);
-//            printf("entry is: %c\n", blockTemp[6]);
-            
-            //testing.... trying to fetch back block
+
             char testblock[1024] = {0};
-            //printf("InodePOINTER IS: %d\n",inodePointers[writeblock]);
             read_blocks(inodePointers[writeblock], 1,testblock);
-            //printf("213412341234entry is: %s\n", testblock);
-//            printf("entry is: %c\n", testblock[5]);
-//            printf("entry is: %c\n", testblock[6]);
+
             start = stop + 1;
             openFiles[fileID].write = newFileSize-1;//updates write pointer to point at the end
             openFiles[fileID].read = newFileSize-1;//updates where the read pointer should be
@@ -516,10 +459,8 @@ int ssfs_fwrite(int fileID, char *buf, int length){
         
         
         inodeList[inodeNum].size = newFileSize;
-    printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~SIZE IS NOW: %d\n", newFileSize);
-        
-        //write back into mem
-        //write_blocks();
+    
+        display(disp);
         return length;
     
     
@@ -533,13 +474,6 @@ int ssfs_fread(int fileID, char *buf, int length){
     if (openFiles[fileID].inodeNum == -1)//file not open
         return -1;
     int readLength = openFiles[fileID].read + 1;
-    //printf("size: %d\n", inodeList[openFiles[fileID].inodeNum].size);
-    //printf("read: %d\n", openFiles[fileID].read);
-    //printf("readLength: %d\n", readLength);
-    //if(readLength > length)
-        //return -1; //length too long
-    //need to get inodePointers
-    //printf("READING...\n");
     int blocksNeeded = (int)ceil((double)length/1024);//# of blocks needed from 0 to hopefully read pointer
     if(length == 0)
         blocksNeeded = 1;
@@ -548,19 +482,14 @@ int ssfs_fread(int fileID, char *buf, int length){
     int inodeNum = openFiles[fileID].inodeNum;
     int inodeLink = inodeNum;
     int nextNode =1;
-    //printf("Length: %d\n", (int)ceil((double)length/1024));
     for(int i = 1; i <= blocksNeeded; i++){//need to fill up inodepointer Array
         int nextInode = ceil(i/14); //indicates what inode of the file we are on
         int pointer = i%14;//indicated what pointer of the inode we are on 1-14
         if(i%14 == 0)
             pointer = 14;
-      //  printf("MAKING INODE HERE!!!!!\n");
-      //  printf("inodePointers[%d] <= %d\n",i-1 , inodeList[inodeLink].direct[pointer-1]);
-      //  printf("^INODE is: %d\n", inodeLink);
-      //  printf("^pointer NUM is: %d\n", pointer);
+
         inodePointers[i-1] = inodeList[inodeLink].direct[pointer-1];
         
-        //printf("-----block pointed to: %d\n", inodePointers[i-1]);
         
         if((nextNode < ceil((i+1)/14)) && i != blocksNeeded){//neeed to change inodes
             nextNode = ceil((i+1)/14);
@@ -570,35 +499,20 @@ int ssfs_fread(int fileID, char *buf, int length){
         
     }
     
-    char blockTemp[1024] = {0};
+    char blockTemp[1024];
     char readBuf[length+1];
-    for(int i = 0; i <= length; i++){
-        readBuf[i] = '\0';
-    }
+//    for(int i = 0; i <= length; i++){
+//        //readBuf[i] = '\0';
+//    }
     
-    //int readblock = (openFiles[fileID].read)/1024; //block read is in
-    //int readLoc = (openFiles[fileID].read)%1024;//location to end reading
-    //int endRead = readLoc;//# of bytes to read in last tempblock
     int startingBlock =0;
-    //if(length < endRead+1)
-        //endRead = length - 1;
-    
-    //int start = 0;
-
-    //printf("readblock: %d\n", readblock);
 
     int i = 0;
-    //int readIndex = (readLoc+i)%1024;
     int readIndex = 0;
-    //char blockTemp[1024];
     read_blocks(inodePointers[startingBlock], 1, blockTemp);
-//    printf("InodePOINTER IS: %d\n",inodePointers[startingBlock]);
-//    printf("DOWNLOADED BLOCK IS: %s\n", blockTemp);
+
     while( (i) != length){//copying byte by byte
 
-        
-        
-        //printf("byte is: %c\n",blockTemp[readIndex]);
         readBuf[i] = blockTemp[readIndex];
    
         i++;
@@ -608,16 +522,14 @@ int ssfs_fread(int fileID, char *buf, int length){
             startingBlock++;
             read_blocks(startingBlock, 1, blockTemp);
         }
-        
     }
-    
-    //printf("READ BUF: %s\n",readBuf);
     strcpy(buf, readBuf);
     openFiles[fileID].read= inodeList[inodeNum].size -1;
     if (inodeList[inodeNum].size == 0)
         openFiles[fileID].read= 0 ;
     return length;
 }
+
 int ssfs_remove(char *file){//remove inode, rootDir reference, and openFile if open
     int j =0;
     char *dirName = rootDir.filenameList[j];
@@ -636,7 +548,6 @@ int ssfs_remove(char *file){//remove inode, rootDir reference, and openFile if o
             openFiles[i].write = -1;
         }
     }
-    
     rootDir.inodeList[j] = -1;
     strcpy(rootDir.filenameList[j],"-1");
     write_blocks(15,3,&rootDir);//write back to mem rootDir
@@ -648,8 +559,9 @@ int ssfs_remove(char *file){//remove inode, rootDir reference, and openFile if o
     return 0;
 }
 
-int display(void){
-    printf("read pointer of inode 0: %d\n",openFiles[0].read);
+int display(int display){
+    if(display == 1){
+    printf("---------------------------------------------------\n\n");
     printf("\trootDir: \n");
     for(int i =0; i < 200; i++){
         if(rootDir.inodeList[i] != -1)
@@ -659,7 +571,7 @@ int display(void){
     for(int i =0; i < 200; i++){
         
         if(openFiles[i].inodeNum != -1){
-            char *fileText[1000] = {0};
+            char *fileText[1000];
             ssfs_fread(i, fileText, 1000);
             
             for(int k =0; k < 200; k++){
@@ -669,6 +581,7 @@ int display(void){
             printf("\t: %s\n",fileText);
         }
     }
+    }
     return 1;
 }
 
@@ -676,19 +589,18 @@ int display(void){
 int main(void){
     mkssfs(1);
     ssfs_fopen("textfile");
-    //display();
+    //display(1);
     ssfs_fopen("textme");
-   // display();
+   // display(1);
     ssfs_fopen("texte");
-    //display();
+    //display(1);
     char *sentence = "Graphic Card is life. I need a 1080 for Christmas. As a side note, it's quite obvious when people copy from github. Usually there's more than one guy copying for the same repository.";
     char *sentence2 = "1234566789999900000000000000000000000000xxx";
     int len = ssfs_fwrite(1,sentence,strlen(sentence));
-   // ssfs_fwseek(1, strlen(sentence)-10);
-    display();
+    ssfs_fwseek(1, strlen(sentence));
+   
     int len2 = ssfs_fwrite(1,sentence,strlen(sentence));
-    printf("1WRITE IS NOW === > %d\n", openFiles[1].write);
-    printf("1READ IS NOW === > %d\n", openFiles[1].read);
+
     
 //    printf("length: %d\n",len);
 //    char *buffer[100] = {0};
@@ -696,8 +608,8 @@ int main(void){
 //    ssfs_fread(1,buffer,100);
 //    printf("BUFFER IS NOW: %s\n",buffer);
     
-    display();
+    
 
 }
-*/
 
+*/
