@@ -227,7 +227,6 @@ int ssfs_fopen(char *name){ //index of newsly created/opened entry (disk block N
         dirName =rootDir.filenameList[j];
     }
     
-    //TODO: if rootDir.inodeList[j] is already in an openFiles[X].inodeNum exit
     
     int k =0;
     while(openFiles[k].inodeNum != -1){//look for empty slot in openFileDescriptor
@@ -235,6 +234,7 @@ int ssfs_fopen(char *name){ //index of newsly created/opened entry (disk block N
         if(k == 200)
             break;
     }
+    
     if(strcmp(dirName,name) == 0){ //found file with corresponding name, at entry of rootDir j
         openFiles[k].inodeNum = rootDir.inodeList[j];
         
@@ -280,10 +280,13 @@ int ssfs_fopen(char *name){ //index of newsly created/opened entry (disk block N
 
 
 int ssfs_fclose(int fileID){
+
+    
     if(fileID >= 200 || fileID<0)//prevent out of bound & not negative
         return -1;
     if (openFiles[fileID].inodeNum == -1)//file not open
         return -1;
+    
     openFiles[fileID].inodeNum = -1;
     openFiles[fileID].read = -1;
     openFiles[fileID].write = -1;
