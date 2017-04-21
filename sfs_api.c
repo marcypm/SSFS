@@ -73,7 +73,7 @@ int writeFreeBlock();
 int linkInodePointers(int nblocks, int inodeNum, int inodeSize);
 int getNumFreeBlocks();
 int display(int display);
-int disp = 1; //Change to bring up file system display everytime a file is writen to or added to system
+int disp = 0; //Change to bring up file system display everytime a file is writen to or added to system
 
 void mkssfs(int fresh){
 
@@ -333,7 +333,7 @@ int ssfs_fwrite(int fileID, char *buf, int length){
     int fileSize = inodeList[inodeNum].size;
     int newFileSize = openFiles[fileID].write + 1 + length;
 
-    int newSize = openFiles[fileID].write + 1 + length;
+  //  int newSize = openFiles[fileID].write + 1 + length;
 
 
 
@@ -480,7 +480,7 @@ int ssfs_fread(int fileID, char *buf, int length){
         return -1;
     if (openFiles[fileID].inodeNum == -1)//file not open
         return -1;
-    int readLength = openFiles[fileID].read + 1;
+    //int readLength = openFiles[fileID].read + 1;
     int blocksNeeded = (int)ceil((double)length/1024);//# of blocks needed from 0 to hopefully read pointer
     if(length == 0)
         blocksNeeded = 1;
@@ -490,7 +490,7 @@ int ssfs_fread(int fileID, char *buf, int length){
     int inodeLink = inodeNum;
     int nextNode =1;
     for(int i = 1; i <= blocksNeeded; i++){//need to fill up inodepointer Array
-        int nextInode = ceil(i/14); //indicates what inode of the file we are on
+      //  int nextInode = ceil(i/14); //indicates what inode of the file we are on
         int pointer = i%14;//indicated what pointer of the inode we are on 1-14
         if(i%14 == 0)
             pointer = 14;
