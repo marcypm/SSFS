@@ -9,11 +9,11 @@ SOURCES_TEST2= disk_emu.c sfs_api.c sfs_test2.c tests.c
 
 
 test: $(SOURCES_TEST)
-	$(CC) -o $(EXECUTABLE) $(SOURCES_TEST)
+	$(CC) -o $(EXECUTABLE) $(SOURCES_TEST) -lm
 test1: $(SOURCES_TEST1)
-	$(CC) -o $(EXECUTABLE) $(SOURCES_TEST1)
+	$(CC) -o $(EXECUTABLE) $(SOURCES_TEST1) -lm
 
 test2: $(SOURCES_TEST2)
-	$(CC) -o $(EXECUTABLE) $(SOURCES_TEST2)
+	$(CC) -o $(EXECUTABLE) $(SOURCES_TEST2) -lm
 clean:
 	rm $(EXECUTABLE)
